@@ -85,7 +85,8 @@ else
 fi
 
 log "GitHub에 푸시 중..."
-if git push origin main; then
+# Token을 포함한 URL로 푸시
+if git push https://dongwoo314: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@github.com/dongwoo314/Event-Scheduler.git main; then
     success "GitHub 푸시 완료"
 else
     error "GitHub 푸시 실패"
