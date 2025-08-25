@@ -1,0 +1,351 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, sans-serif;
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100;
+    @apply transition-colors duration-200;
+  }
+  
+  * {
+    @apply border-gray-200 dark:border-gray-700;
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-800;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-600 rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-500;
+  }
+}
+
+@layer components {
+  /* Button variants */
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium;
+    @apply transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+    @apply disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  
+  .btn-primary {
+    @apply bg-primary-600 hover:bg-primary-700 text-white;
+    @apply focus:ring-primary-500 dark:focus:ring-offset-gray-900;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-100 hover:bg-gray-200 text-gray-900;
+    @apply dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-gray-100;
+    @apply focus:ring-gray-500;
+  }
+  
+  .btn-success {
+    @apply bg-success-600 hover:bg-success-700 text-white;
+    @apply focus:ring-success-500;
+  }
+  
+  .btn-warning {
+    @apply bg-warning-600 hover:bg-warning-700 text-white;
+    @apply focus:ring-warning-500;
+  }
+  
+  .btn-error {
+    @apply bg-error-600 hover:bg-error-700 text-white;
+    @apply focus:ring-error-500;
+  }
+  
+  .btn-ghost {
+    @apply bg-transparent hover:bg-gray-100 text-gray-700;
+    @apply dark:hover:bg-gray-800 dark:text-gray-300;
+    @apply focus:ring-gray-500;
+  }
+  
+  .btn-sm {
+    @apply px-3 py-1.5 text-sm;
+  }
+  
+  .btn-lg {
+    @apply px-6 py-3 text-lg;
+  }
+  
+  /* Input styles */
+  .input {
+    @apply block w-full px-3 py-2 border rounded-lg;
+    @apply bg-white dark:bg-gray-800;
+    @apply border-gray-300 dark:border-gray-600;
+    @apply text-gray-900 dark:text-gray-100;
+    @apply placeholder-gray-500 dark:placeholder-gray-400;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
+    @apply transition-colors duration-200;
+  }
+  
+  .input-error {
+    @apply border-error-500 focus:ring-error-500;
+  }
+  
+  /* Card styles */
+  .card {
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-soft;
+    @apply border border-gray-200 dark:border-gray-700;
+    @apply transition-colors duration-200;
+  }
+  
+  .card-hover {
+    @apply hover:shadow-medium transition-shadow duration-200;
+  }
+  
+  /* Loading spinner */
+  .spinner {
+    @apply animate-spin rounded-full border-2 border-gray-200;
+    @apply border-t-primary-600 dark:border-gray-700 dark:border-t-primary-400;
+  }
+  
+  /* Badge styles */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .badge-primary {
+    @apply bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200;
+  }
+  
+  .badge-success {
+    @apply bg-success-100 text-success-800 dark:bg-success-900 dark:text-success-200;
+  }
+  
+  .badge-warning {
+    @apply bg-warning-100 text-warning-800 dark:bg-warning-900 dark:text-warning-200;
+  }
+  
+  .badge-error {
+    @apply bg-error-100 text-error-800 dark:bg-error-900 dark:text-error-200;
+  }
+  
+  /* Navigation styles */
+  .nav-link {
+    @apply flex items-center px-3 py-2 rounded-lg text-sm font-medium;
+    @apply text-gray-700 dark:text-gray-300;
+    @apply hover:bg-gray-100 dark:hover:bg-gray-800;
+    @apply transition-colors duration-200;
+  }
+  
+  .nav-link-active {
+    @apply bg-primary-50 text-primary-700 dark:bg-primary-900 dark:text-primary-200;
+    @apply border-r-2 border-primary-600;
+  }
+  
+  /* Form styles */
+  .form-group {
+    @apply space-y-1;
+  }
+  
+  .form-label {
+    @apply block text-sm font-medium text-gray-700 dark:text-gray-300;
+  }
+  
+  .form-error {
+    @apply text-sm text-error-600 dark:text-error-400;
+  }
+  
+  .form-help {
+    @apply text-sm text-gray-500 dark:text-gray-400;
+  }
+  
+  /* Modal styles */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4;
+    @apply z-50 transition-opacity duration-200;
+  }
+  
+  .modal-content {
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-hard;
+    @apply max-w-md w-full max-h-full overflow-y-auto;
+    @apply transform transition-all duration-200;
+  }
+  
+  /* Calendar styles */
+  .calendar-day {
+    @apply w-10 h-10 flex items-center justify-center rounded-lg;
+    @apply text-sm font-medium cursor-pointer;
+    @apply hover:bg-gray-100 dark:hover:bg-gray-700;
+    @apply transition-colors duration-200;
+  }
+  
+  .calendar-day-today {
+    @apply bg-primary-100 text-primary-700 dark:bg-primary-900 dark:text-primary-200;
+  }
+  
+  .calendar-day-selected {
+    @apply bg-primary-600 text-white;
+  }
+  
+  .calendar-day-disabled {
+    @apply text-gray-400 dark:text-gray-600 cursor-not-allowed;
+    @apply hover:bg-transparent;
+  }
+  
+  /* Event card styles */
+  .event-card {
+    @apply card p-4 cursor-pointer card-hover;
+  }
+  
+  .event-card-urgent {
+    @apply border-l-4 border-error-500;
+  }
+  
+  .event-card-important {
+    @apply border-l-4 border-warning-500;
+  }
+  
+  .event-card-normal {
+    @apply border-l-4 border-primary-500;
+  }
+  
+  /* Avatar styles */
+  .avatar {
+    @apply rounded-full bg-gray-200 dark:bg-gray-700;
+    @apply flex items-center justify-center;
+    @apply font-medium text-gray-600 dark:text-gray-400;
+  }
+  
+  .avatar-sm {
+    @apply w-8 h-8 text-sm;
+  }
+  
+  .avatar-md {
+    @apply w-10 h-10 text-base;
+  }
+  
+  .avatar-lg {
+    @apply w-12 h-12 text-lg;
+  }
+  
+  /* Notification styles */
+  .notification {
+    @apply flex items-start p-4 rounded-lg;
+    @apply border border-gray-200 dark:border-gray-700;
+    @apply transition-all duration-200;
+  }
+  
+  .notification-info {
+    @apply bg-primary-50 border-primary-200 dark:bg-primary-900 dark:border-primary-700;
+  }
+  
+  .notification-success {
+    @apply bg-success-50 border-success-200 dark:bg-success-900 dark:border-success-700;
+  }
+  
+  .notification-warning {
+    @apply bg-warning-50 border-warning-200 dark:bg-warning-900 dark:border-warning-700;
+  }
+  
+  .notification-error {
+    @apply bg-error-50 border-error-200 dark:bg-error-900 dark:border-error-700;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-primary-600 to-purple-600 bg-clip-text text-transparent;
+  }
+  
+  .glass {
+    @apply bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm;
+  }
+  
+  .shadow-glow {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  }
+  
+  .border-gradient {
+    border-image: linear-gradient(45deg, #3b82f6, #8b5cf6) 1;
+  }
+}
+
+/* Animations */
+@keyframes shimmer {
+  0% {
+    background-position: -200px 0;
+  }
+  100% {
+    background-position: calc(200px + 100%) 0;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.dark .shimmer {
+  background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+  background-size: 200px 100%;
+}
+
+/* React Calendar overrides */
+.react-calendar {
+  @apply bg-white dark:bg-gray-800 border-0 rounded-xl shadow-soft;
+  @apply font-sans text-gray-900 dark:text-gray-100;
+}
+
+.react-calendar__navigation {
+  @apply bg-gray-50 dark:bg-gray-700 rounded-t-xl;
+}
+
+.react-calendar__navigation button {
+  @apply text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600;
+  @apply rounded-lg transition-colors duration-200;
+}
+
+.react-calendar__tile {
+  @apply hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg;
+  @apply transition-colors duration-200;
+}
+
+.react-calendar__tile--active {
+  @apply bg-primary-600 hover:bg-primary-700 text-white;
+}
+
+.react-calendar__tile--now {
+  @apply bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-200;
+}
+
+/* React DatePicker overrides */
+.react-datepicker {
+  @apply bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-600;
+  @apply shadow-medium rounded-xl;
+}
+
+.react-datepicker__header {
+  @apply bg-gray-50 dark:bg-gray-700 border-b-gray-200 dark:border-b-gray-600;
+  @apply rounded-t-xl;
+}
+
+.react-datepicker__day {
+  @apply hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg;
+  @apply transition-colors duration-200;
+}
+
+.react-datepicker__day--selected {
+  @apply bg-primary-600 hover:bg-primary-700 text-white;
+}
+
+.react-datepicker__day--today {
+  @apply bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-200;
+}
