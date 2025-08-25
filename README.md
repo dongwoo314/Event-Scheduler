@@ -215,7 +215,7 @@ save-frontend-to-github.bat
 - [ ] 오픈소스 배포
 
 ---
-**📅 마지막 업데이트**: 2024년 8월 25일  
-**🎓 졸업작품**: 서울대학교 컴퓨터공학과  
+**📅 마지막 업데이트**: 2025년 8월 25일  
+**🎓 졸업작품**: 인제대학교 의료IT학과 김동우
 **🤖 AI 협업**: Claude (Anthropic)  
 **⭐ GitHub**: https://github.com/dongwoo314/Event-Scheduler
