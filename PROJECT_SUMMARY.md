@@ -4,7 +4,7 @@
 **웹과 모바일 앱이 연동되는 스마트 알림 중심의 이벤트 스케줄링 플랫폼**
 
 **개발 기간**: 2024년 12월 (초기 설계 단계)
-**개발자**: 서울대학교 컴퓨터공학과
+**개발자**: 인제대학교 의료IT학과
 **AI 어시스턴트**: Claude (Anthropic)
 **Repository**: https://github.com/dongwoo314/Event-Scheduler
 
@@ -232,7 +232,7 @@ schedule-app-project/
 **주요 기술**: React, Node.js, PostgreSQL, TailwindCSS, Firebase
 **협업 도구**: GitHub, Claude AI, 자동화 스크립트
 
-**연락처**: 서울대학교 컴퓨터공학과
+**연락처**: 인제대학교 의료IT학과 김동우
 **프로젝트 상태**: 설계 완료, 개발 준비 단계
 
 ---
