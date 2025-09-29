@@ -4,10 +4,16 @@ frontend:
     preBuild:
       commands:
         - cd src/frontend
+        # 캐시 문제 방지를 위한 clean install
         - npm ci
+        # 환경 변수 확인 (디버깅용)
+        - echo "VITE_API_URL = $VITE_API_URL"
     build:
       commands:
+        # Vite 빌드 시 환경 변수 명시적으로 전달
         - npm run build
+        # 빌드된 파일 확인
+        - ls -la dist
   artifacts:
     baseDirectory: src/frontend/dist
     files:
