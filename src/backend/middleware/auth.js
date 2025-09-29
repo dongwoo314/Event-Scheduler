@@ -1,5 +1,4 @@
 const jwt = require('jsonwebtoken');
-const { User } = require('../models');
 
 const authenticate = async (req, res, next) => {
   try {
@@ -22,35 +21,10 @@ const authenticate = async (req, res, next) => {
     }
 
     // Verify JWT token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
     
-    // Find user by ID
-    const user = await User.findByPk(decoded.userId, {
-      include: [
-        {
-          model: require('../models').UserPreference,
-          as: 'preferences'
-        }
-      ]
-    });
-
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid access token'
-      });
-    }
-
-    if (!user.is_active) {
-      return res.status(401).json({
-        success: false,
-        message: 'Account is deactivated'
-      });
-    }
-
-    // Add user to request object
-    req.user = user;
-    req.userId = user.id;
+    // Simply add userId to request object (no DB lookup needed)
+    req.userId = decoded.userId;
     
     next();
   } catch (error) {
@@ -91,13 +65,8 @@ const optionalAuth = async (req, res, next) => {
       return next();
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findByPk(decoded.userId);
-
-    if (user && user.is_active) {
-      req.user = user;
-      req.userId = user.id;
-    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    req.userId = decoded.userId;
     
     next();
   } catch (error) {

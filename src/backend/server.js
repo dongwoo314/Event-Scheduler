@@ -18,24 +18,7 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 3001;
 
 console.log('🔄 Starting server initialization...');
-
-// 데이터베이스 초기화
-async function initializeDatabase() {
-  try {
-    const { sequelize } = require('./models');
-    console.log('💾 Connecting to database...');
-    await sequelize.authenticate();
-    console.log('✅ Database connection established');
-    
-    // 테이블 동기화 (production에서는 alter: true 사용)
-    await sequelize.sync({ alter: process.env.NODE_ENV === 'production' });
-    console.log('✅ Database tables synchronized');
-    return true;
-  } catch (error) {
-    console.error('❌ Database initialization failed:', error.message);
-    return false;
-  }
-}
+console.log('⚠️  Running in NO-DATABASE mode (Memory-based storage)');
 
 // 기본 미들웨어 설정
 try {
@@ -57,13 +40,17 @@ try {
     process.env.CORS_ORIGIN,
     "http://localhost:3000",
     "http://localhost:5173",
+    "https://main.d36fcecqvpxht8.amplifyapp.com",
+    "https://event-scheduler-backend.vercel.app",
     "https://schedule-app-project.vercel.app"
   ].filter(Boolean);
 
   app.use(cors({
     origin: function (origin, callback) {
-      // origin이 없거나 (Postman 등), allowedOrigins에 포함되거나, vercel.app 도메인이면 허용
-      if (!origin || allowedOrigins.includes(origin) || (origin && origin.includes('.vercel.app'))) {
+      // origin이 없거나 (Postman 등), allowedOrigins에 포함되거나, vercel.app/amplifyapp 도메인이면 허용
+      if (!origin || 
+          allowedOrigins.includes(origin) || 
+          (origin && (origin.includes('.vercel.app') || origin.includes('.amplifyapp.com')))) {
         callback(null, true);
       } else {
         console.warn(`CORS blocked origin: ${origin}`);
@@ -96,7 +83,8 @@ app.get('/health', (req, res) => {
     status: 'OK',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
-    version: '1.0.0'
+    version: '1.0.0',
+    mode: 'no-database'
   });
 });
 
@@ -106,9 +94,10 @@ console.log('✅ Health check route configured');
 app.get('/api', (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'Event Scheduler API Server',
+    message: 'Event Scheduler API Server (No-Database Mode)',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
+    mode: 'memory-based-storage',
     endpoints: {
       health: '/health',
       auth: '/api/auth',
@@ -198,21 +187,22 @@ app.use((err, req, res, next) => {
   });
 });
 
-// 서버 시작 - Render.com에서는 반드시 실행되어야 함
-(async () => {
-  // 데이터베이스 초기화
-  await initializeDatabase();
-  
-  server.listen(PORT, '0.0.0.0', () => {
-    console.log('🎉 ================================');
-    console.log('🚀 Server running successfully!');
-    console.log(`📡 Port: ${PORT}`);
-    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🌐 Health check: http://localhost:${PORT}/health`);
-    console.log(`📊 API base: http://localhost:${PORT}/api`);
-    console.log('🎉 ================================');
-  });
-})();
+// 서버 시작
+server.listen(PORT, '0.0.0.0', () => {
+  console.log('🎉 ================================');
+  console.log('🚀 Server running successfully!');
+  console.log('⚠️  NO-DATABASE MODE (Memory only)');
+  console.log(`📡 Port: ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+  console.log(`📊 API base: http://localhost:${PORT}/api`);
+  console.log('');
+  console.log('🔐 Test accounts available:');
+  console.log('   Email: demo@snu.ac.kr');
+  console.log('   Email: test@example.com');
+  console.log('   Password: password123');
+  console.log('🎉 ================================');
+});
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
