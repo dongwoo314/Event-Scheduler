@@ -44,7 +44,8 @@ try {
 
   app.use(cors({
     origin: function (origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      // origin이 없거나 (Postman 등), allowedOrigins에 포함되거나, vercel.app 도메인이면 허용
+      if (!origin || allowedOrigins.includes(origin) || (origin && origin.includes('.vercel.app'))) {
         callback(null, true);
       } else {
         console.warn(`CORS blocked origin: ${origin}`);
