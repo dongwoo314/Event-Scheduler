@@ -1,5 +1,6 @@
 // 전역 상태 관리 스토어들을 모두 내보내는 인덱스 파일
 
+export { useAuthStore } from './auth';
 export { useGroupStore } from './group';
 export { useEventStore } from './event';
 export { useUiStore } from './ui';
