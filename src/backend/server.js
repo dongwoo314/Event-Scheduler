@@ -112,14 +112,52 @@ app.all('/api/auth/*', (req, res, next) => {
   next();
 });
 
-// 인증 라우트를 여기서 직접 등록 (테스트)
-console.log('🔑 Attempting to load auth routes early...');
+// API 라우트 등록 - Vercel 환경을 위해 즉시 실행
+console.log('🛣️ Setting up API routes...');
+
+// 인증 라우트
 try {
   const authRoutes = require('./routes/auth');
   app.use('/api/auth', authRoutes);
-  console.log('✅ Auth routes registered EARLY at /api/auth');
+  console.log('✅ Auth routes registered at /api/auth');
 } catch (error) {
-  console.error('❌ Failed to load auth routes EARLY:', error.message);
+  console.error('❌ Failed to load auth routes:', error.message);
+}
+
+// 이벤트 라우트
+try {
+  const eventRoutes = require('./routes/events');
+  app.use('/api/events', eventRoutes);
+  console.log('✅ Event routes loaded at /api/events');
+} catch (error) {
+  console.error('❌ Failed to load event routes:', error.message);
+}
+
+// 알림 라우트
+try {
+  const notificationRoutes = require('./routes/notifications');
+  app.use('/api/notifications', notificationRoutes);
+  console.log('✅ Notification routes loaded at /api/notifications');
+} catch (error) {
+  console.error('❌ Failed to load notification routes:', error.message);
+}
+
+// 사용자 라우트
+try {
+  const userRoutes = require('./routes/users');
+  app.use('/api/users', userRoutes);
+  console.log('✅ User routes loaded at /api/users');
+} catch (error) {
+  console.error('❌ Failed to load user routes:', error.message);
+}
+
+// 그룹 라우트
+try {
+  const groupRoutes = require('./routes/groups');
+  app.use('/api/groups', groupRoutes);
+  console.log('✅ Group routes loaded at /api/groups');
+} catch (error) {
+  console.error('❌ Failed to load group routes:', error.message);
 }
 
 // 데이터베이스 연결 및 연동 테스트
