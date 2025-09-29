@@ -21,8 +21,8 @@ const userSchemas = {
       'string.max': 'Last name cannot exceed 50 characters',
       'any.required': 'Last name is required'
     }),
-    username: Joi.string().alphanum().min(3).max(30).optional(),
-    phone_number: Joi.string().pattern(/^[+]?[0-9\s\-()]+$/).optional(),
+    username: Joi.string().alphanum().min(3).max(30).allow('').optional(),
+    phone_number: Joi.string().pattern(/^[+]?[0-9\s\-()]+$/).allow('').optional(),
     timezone: Joi.string().default('Asia/Seoul'),
     language: Joi.string().valid('ko', 'en').default('ko')
   }),
