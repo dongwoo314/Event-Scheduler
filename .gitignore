@@ -49,3 +49,5 @@ android/
 
 # Git setup log (temporary)
 git-setup-log.md
+
+.vercel

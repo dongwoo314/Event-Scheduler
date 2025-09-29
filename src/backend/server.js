@@ -341,6 +341,6 @@ process.on('SIGINT', async () => {
 });
 
 // 서버 시작
-startServer();
+// startServer(); // Vercel에서는 자동으로 처리됨
 
 module.exports = app;
