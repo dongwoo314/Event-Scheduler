@@ -1,0 +1,14 @@
+{
+  "name": "schedule-app-project",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "cd src/frontend && npm install && npm run build",
+    "dev": "cd src/frontend && npm run dev",
+    "preview": "cd src/frontend && npm run preview"
+  },
+  "workspaces": [
+    "src/frontend",
+    "src/backend"
+  ]
+}

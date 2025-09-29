@@ -1,6 +1,16 @@
 {
+  "version": 2,
+  "framework": "vite",
   "buildCommand": "cd src/frontend && npm install && npm run build",
   "outputDirectory": "src/frontend/dist",
-  "framework": "vite",
-  "installCommand": "cd src/frontend && npm install"
+  "installCommand": "npm install --prefix src/frontend",
+  "devCommand": "cd src/frontend && npm run dev",
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
 }

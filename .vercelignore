@@ -1,0 +1,14 @@
+node_modules
+.git
+src/backend
+*.log
+.env
+.env.local
+.DS_Store
+docs
+scripts
+*.bat
+*.sh
+*.ps1
+DEPLOYMENT_*.md
+README.md
