@@ -19,6 +19,24 @@ const PORT = process.env.PORT || 3001;
 
 console.log('🔄 Starting server initialization...');
 
+// 데이터베이스 초기화
+async function initializeDatabase() {
+  try {
+    const { sequelize } = require('./models');
+    console.log('💾 Connecting to database...');
+    await sequelize.authenticate();
+    console.log('✅ Database connection established');
+    
+    // 테이블 동기화 (production에서는 alter: true 사용)
+    await sequelize.sync({ alter: process.env.NODE_ENV === 'production' });
+    console.log('✅ Database tables synchronized');
+    return true;
+  } catch (error) {
+    console.error('❌ Database initialization failed:', error.message);
+    return false;
+  }
+}
+
 // 기본 미들웨어 설정
 try {
   console.log('📝 Setting up basic middleware...');
@@ -181,15 +199,20 @@ app.use((err, req, res, next) => {
 });
 
 // 서버 시작 - Render.com에서는 반드시 실행되어야 함
-server.listen(PORT, '0.0.0.0', () => {
-  console.log('🎉 ================================');
-  console.log('🚀 Server running successfully!');
-  console.log(`📡 Port: ${PORT}`);
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Health check: http://localhost:${PORT}/health`);
-  console.log(`📊 API base: http://localhost:${PORT}/api`);
-  console.log('🎉 ================================');
-});
+(async () => {
+  // 데이터베이스 초기화
+  await initializeDatabase();
+  
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log('🎉 ================================');
+    console.log('🚀 Server running successfully!');
+    console.log(`📡 Port: ${PORT}`);
+    console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`🌐 Health check: http://localhost:${PORT}/health`);
+    console.log(`📊 API base: http://localhost:${PORT}/api`);
+    console.log('🎉 ================================');
+  });
+})();
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
