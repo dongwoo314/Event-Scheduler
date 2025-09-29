@@ -35,8 +35,24 @@ try {
   }));
   console.log('✅ Helmet configured');
 
+  // CORS 설정 - 여러 origin 지원
+  const allowedOrigins = [
+    process.env.CORS_ORIGIN,
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "https://main.d36fcecqvpxht8.amplifyapp.com"
+  ].filter(Boolean); // null/undefined 제거
+
   app.use(cors({
-    origin: [process.env.CORS_ORIGIN || "http://localhost:3000", "http://localhost:3000"],
+    origin: function (origin, callback) {
+      // origin이 없는 경우 (예: 모바일 앱, Postman) 또는 허용된 origin인 경우
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.warn(`CORS blocked origin: ${origin}`);
+        callback(null, false);
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
