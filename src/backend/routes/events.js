@@ -6,6 +6,44 @@ const { Op } = require('sequelize');
 const moment = require('moment-timezone');
 const router = express.Router();
 
+// 테스트를 위한 인증 없이 이벤트 생성 엔드포인트 (개발용)
+router.post('/test-create', async (req, res) => {
+  try {
+    console.log('테스트 이벤트 생성 요청:', req.body);
+    
+    // 임시 사용자 ID (개발용)
+    const eventData = {
+      ...req.body,
+      user_id: 1 // 임시 사용자 ID
+    };
+
+    // 간단한 이벤트 객체 생성 (데이터베이스 없이)
+    const event = {
+      id: Date.now(), // 임시 ID
+      ...eventData,
+      status: 'upcoming',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    console.log('생성된 테스트 이벤트:', event);
+
+    res.status(201).json({
+      success: true,
+      message: '테스트 이벤트가 성공적으로 생성되었습니다.',
+      data: { event }
+    });
+
+  } catch (error) {
+    console.error('테스트 이벤트 생성 에러:', error);
+    res.status(500).json({
+      success: false,
+      message: '테스트 이벤트 생성 중 오류가 발생했습니다.',
+      error: error.message
+    });
+  }
+});
+
 /**
  * @route   GET /api/events
  * @desc    Get user's events with filtering and pagination

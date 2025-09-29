@@ -185,6 +185,139 @@ router.put('/read-all', authenticate, async (req, res) => {
 });
 
 /**
+ * @route   POST /api/notifications/:id/acknowledge
+ * @desc    핵심 혁신 기능: 사전 알림에 대한 사용자 응답 처리
+ * @access  Private
+ */
+router.post('/:id/acknowledge', authenticate, validate(notificationSchemas.acknowledge), async (req, res) => {
+  try {
+    const { action, snooze_minutes } = req.body;
+    const notificationId = req.params.id;
+
+    const notification = await Notification.findOne({
+      where: {
+        id: notificationId,
+        user_id: req.userId
+      },
+      include: [
+        {
+          model: Event,
+          as: 'event'
+        }
+      ]
+    });
+
+    if (!notification) {
+      return res.status(404).json({
+        success: false,
+        message: '알림을 찾을 수 없습니다.'
+      });
+    }
+
+    const notificationService = require('../services/notificationService');
+    
+    // 핵심 기능: 사용자 액션에 따른 스마트 처리
+    await notificationService.handleNotificationAck({
+      notificationId,
+      action,
+      snoozeMinutes: snooze_minutes
+    });
+
+    res.json({
+      success: true,
+      message: getActionMessage(action, notification.event?.title),
+      data: {
+        action,
+        event_title: notification.event?.title,
+        processed_at: new Date()
+      }
+    });
+
+  } catch (error) {
+    console.error('Acknowledge notification error:', error);
+    res.status(500).json({
+      success: false,
+      message: '알림 응답 처리 중 오류가 발생했습니다.',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
+
+// 헬퍼 함수: 사용자 액션에 따른 메시지
+function getActionMessage(action, eventTitle) {
+  const messages = {
+    confirmed: `"${eventTitle}" 정시 알림을 유지합니다. ⏰`,
+    snooze: `"${eventTitle}" 잠시 후 다시 알려드리겠습니다. 😴`,
+    ready: `"${eventTitle}" 준비 완료! 정시 알림을 취소했습니다. 🎯`,
+    dismissed: `"${eventTitle}" 알림을 확인했습니다. ✅`
+  };
+  return messages[action] || '알림을 처리했습니다.';
+}
+
+/**
+ * @route   POST /api/notifications/acknowledge
+ * @desc    Socket.IO 대신 HTTP로 알림 응답 처리 (호환성)
+ * @access  Private
+ */
+router.post('/acknowledge', authenticate, async (req, res) => {
+  try {
+    const { notification_id, action, user_id } = req.body;
+    
+    // user_id 검증 (보안)
+    if (user_id && user_id !== req.userId) {
+      return res.status(403).json({
+        success: false,
+        message: '권한이 없습니다.'
+      });
+    }
+
+    const notificationService = require('../services/notificationService');
+    await notificationService.handleNotificationAck({
+      notificationId: notification_id,
+      action
+    });
+
+    res.json({
+      success: true,
+      message: '알림 응답이 처리되었습니다.',
+      data: { action, processed_at: new Date() }
+    });
+
+  } catch (error) {
+    console.error('HTTP acknowledge notification error:', error);
+    res.status(500).json({
+      success: false,
+      message: '알림 응답 처리 중 오류가 발생했습니다.'
+    });
+  }
+});
+
+/**
+ * @route   GET /api/notifications/stats
+ * @desc    알림 통계 조회
+ * @access  Private
+ */
+router.get('/stats', authenticate, async (req, res) => {
+  try {
+    const { days = 30 } = req.query;
+    const notificationService = require('../services/notificationService');
+    const stats = await notificationService.getNotificationStats(req.userId, parseInt(days));
+
+    res.json({
+      success: true,
+      data: { stats, period_days: days }
+    });
+
+  } catch (error) {
+    console.error('Get notification stats error:', error);
+    res.status(500).json({
+      success: false,
+      message: '알림 통계 조회 중 오류가 발생했습니다.'
+    });
+  }
+});
+
+/**
  * @route   DELETE /api/notifications/:id
  * @desc    Delete notification
  * @access  Private

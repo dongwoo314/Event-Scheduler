@@ -153,6 +153,8 @@ export function useAuth() {
     register: authStore.register,
     updateProfile: authStore.updateProfile,
     updatePreferences: authStore.updatePreferences,
+    refreshUser: authStore.refreshUser,
+    updateUser: authStore.updateUser,
     clearError: authStore.clearError,
   };
 }
@@ -407,3 +409,6 @@ export function useTimeout(callback: () => void, delay: number | null) {
     return () => clearTimeout(id);
   }, [delay]);
 }
+
+// 커스텀 훅 내보내기
+export { useEvents } from './useEvents';

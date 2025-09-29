@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const { User, UserPreference } = require('../models');
 const { authenticate } = require('../middleware/auth');
 const { validate, userSchemas } = require('../middleware/validation');
+const emailService = require('../services/emailService');
 const router = express.Router();
 
 // Generate JWT token
@@ -30,6 +31,9 @@ const generateRefreshToken = (userId) => {
  * @access  Public
  */
 router.post('/register', validate(userSchemas.register), async (req, res) => {
+  console.log('==== 회원가입 요청 받음 ====');
+  console.log('요청 데이터:', JSON.stringify(req.body, null, 2));
+  
   try {
     const {
       email,
@@ -41,28 +45,37 @@ router.post('/register', validate(userSchemas.register), async (req, res) => {
       timezone,
       language
     } = req.body;
+    
+    console.log('추출된 데이터:', { email, first_name, last_name, username, timezone, language });
 
     // Check if user already exists
+    console.log('이메일 중복 확인 중:', email);
     const existingUser = await User.findByEmail(email);
     if (existingUser) {
+      console.log('이미 존재하는 이메일:', email);
       return res.status(409).json({
         success: false,
         message: '이미 등록된 이메일입니다.'
       });
     }
+    console.log('이메일 중복 없음');
 
     // Check username uniqueness if provided
     if (username) {
+      console.log('사용자명 중복 확인 중:', username);
       const existingUsername = await User.findOne({ where: { username } });
       if (existingUsername) {
+        console.log('이미 존재하는 사용자명:', username);
         return res.status(409).json({
           success: false,
           message: '이미 사용중인 사용자명입니다.'
         });
       }
+      console.log('사용자명 중복 없음');
     }
 
     // Create user
+    console.log('사용자 생성 시도 중...');
     const user = await User.create({
       email,
       password,
@@ -73,8 +86,10 @@ router.post('/register', validate(userSchemas.register), async (req, res) => {
       timezone: timezone || 'Asia/Seoul',
       language: language || 'ko'
     });
+    console.log('사용자 생성 성공:', user.id);
 
     // Create default user preferences
+    console.log('사용자 설정 생성 시도 중...');
     await UserPreference.create({
       user_id: user.id,
       notification_settings: {
@@ -100,14 +115,24 @@ router.post('/register', validate(userSchemas.register), async (req, res) => {
         timezone: timezone || 'Asia/Seoul'
       }
     });
+    console.log('사용자 설정 생성 성공');
 
     // Generate tokens
+    console.log('토큰 생성 중...');
     const accessToken = generateToken(user.id);
     const refreshToken = generateRefreshToken(user.id);
+    console.log('토큰 생성 성공');
 
     // Get user profile without sensitive data
     const userProfile = user.getPublicProfile();
+    console.log('프로필 생성 성공');
 
+    // Send welcome email (non-blocking)
+    emailService.sendWelcomeEmail(user).catch(error => {
+      console.error('Failed to send welcome email:', error);
+    });
+
+    console.log('회원가입 성공 응답 전송 중...');
     res.status(201).json({
       success: true,
       message: '회원가입이 완료되었습니다.',
@@ -122,11 +147,16 @@ router.post('/register', validate(userSchemas.register), async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error('==== 회원가입 에러 ====');
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', error);
+    
     res.status(500).json({
       success: false,
       message: '회원가입 중 오류가 발생했습니다.',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
@@ -137,61 +167,83 @@ router.post('/register', validate(userSchemas.register), async (req, res) => {
  * @access  Public
  */
 router.post('/login', validate(userSchemas.login), async (req, res) => {
+  console.log('==== 로그인 요청 받음 ====');
+  console.log('요청 데이터:', { email: req.body.email });
+  
   try {
     const { email, password } = req.body;
 
-    // Find user with preferences
+    // Find user WITHOUT preferences to avoid association errors
+    console.log('사용자 검색 중:', email);
     const user = await User.findOne({
-      where: { email: email.toLowerCase() },
-      include: [
-        {
-          model: UserPreference,
-          as: 'preferences'
-        }
-      ]
+      where: { email: email.toLowerCase() }
     });
 
     if (!user) {
+      console.log('사용자를 찾을 수 없음:', email);
       return res.status(401).json({
         success: false,
         message: '이메일 또는 비밀번호가 올바르지 않습니다.'
       });
     }
+    console.log('사용자 찾음:', user.id);
 
     // Check if account is active
     if (!user.is_active) {
+      console.log('비활성화된 계정:', email);
       return res.status(401).json({
         success: false,
         message: '비활성화된 계정입니다. 관리자에게 문의하세요.'
       });
     }
+    console.log('계정 활성화 상태 확인');
 
     // Verify password
+    console.log('비밀번호 확인 중...');
     const isPasswordValid = await user.checkPassword(password);
     if (!isPasswordValid) {
+      console.log('비밀번호 불일치:', email);
       return res.status(401).json({
         success: false,
         message: '이메일 또는 비밀번호가 올바르지 않습니다.'
       });
     }
+    console.log('비밀번호 확인 성공');
 
     // Update last login time
+    console.log('마지막 로그인 시간 업데이트 중...');
     await user.update({ last_login_at: new Date() });
 
+    // Get preferences separately
+    console.log('사용자 설정 조회 중...');
+    let preferences = null;
+    try {
+      preferences = await UserPreference.findOne({
+        where: { user_id: user.id }
+      });
+      console.log('사용자 설정 조회 성공');
+    } catch (prefError) {
+      console.warn('사용자 설정 조회 실패, 계속 진행:', prefError.message);
+    }
+
     // Generate tokens
+    console.log('토큰 생성 중...');
     const accessToken = generateToken(user.id);
     const refreshToken = generateRefreshToken(user.id);
+    console.log('토큰 생성 성공');
 
     // Get user profile without sensitive data
     const userProfile = user.getPublicProfile();
+    console.log('프로필 생성 성공');
 
+    console.log('로그인 성공 응답 전송 중...');
     res.json({
       success: true,
       message: '로그인 되었습니다.',
       data: {
         user: {
           ...userProfile,
-          preferences: user.preferences
+          preferences: preferences
         },
         tokens: {
           access_token: accessToken,
@@ -200,9 +252,13 @@ router.post('/login', validate(userSchemas.login), async (req, res) => {
         }
       }
     });
+    console.log('로그인 응답 전송 완료');
 
   } catch (error) {
-    console.error('Login error:', error);
+    console.error('==== 로그인 에러 ====');
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    
     res.status(500).json({
       success: false,
       message: '로그인 중 오류가 발생했습니다.',

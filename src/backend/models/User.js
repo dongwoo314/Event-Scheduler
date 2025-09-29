@@ -4,10 +4,10 @@ const bcrypt = require('bcryptjs');
 module.exports = (sequelize, DataTypes) => {
   class User extends Model {
     static associate(models) {
-      // User has many Events
+      // User has many Events (as creator)
       User.hasMany(models.Event, {
         foreignKey: 'user_id',
-        as: 'events'
+        as: 'createdEvents'
       });
       
       // User has many Notifications
@@ -30,13 +30,7 @@ module.exports = (sequelize, DataTypes) => {
         as: 'groupMemberships'
       });
       
-      // User has many EventParticipants
-      User.hasMany(models.EventParticipant, {
-        foreignKey: 'user_id',
-        as: 'eventParticipations'
-      });
-      
-      // User has many UserPreferences
+      // User has one UserPreference
       User.hasOne(models.UserPreference, {
         foreignKey: 'user_id',
         as: 'preferences'

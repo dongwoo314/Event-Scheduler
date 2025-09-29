@@ -6,6 +6,11 @@ import { Toaster } from 'react-hot-toast';
 // Store hooks
 import { useAuth } from '@hooks/index';
 import { useUiStore } from '@store/ui';
+import { initializeStores } from '@store/index';
+
+// Debug utilities
+import '@utils/debugStorage';
+import '@utils/migrateData';
 
 // Layout components
 import DashboardLayout from '@components/layout/DashboardLayout';
@@ -21,6 +26,7 @@ const GroupsPage = React.lazy(() => import('@pages/GroupsPage'));
 const ProfilePage = React.lazy(() => import('@pages/ProfilePage'));
 const SettingsPage = React.lazy(() => import('@pages/SettingsPage'));
 const NotificationsPage = React.lazy(() => import('@pages/NotificationsPage'));
+const ReportsPage = React.lazy(() => import('@pages/ReportsPage'));
 
 // Loading component
 const PageLoader: React.FC = () => (
@@ -62,6 +68,34 @@ const PublicRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 const App: React.FC = () => {
   const { theme } = useUiStore();
+  const { loadCurrentUser, isLoading: authLoading } = useAuth();
+
+  // 애플리케이션 시작 시 인증 상태 확인 및 스토어 초기화
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        console.log('애플리케이션 시작 - 인증 상태 확인 중...');
+        
+        // localStorage에 토큰이 있는지 확인
+        const token = localStorage.getItem('access_token');
+        if (token) {
+          console.log('저장된 토큰 발견, 사용자 정보 로드 시도...');
+          await loadCurrentUser();
+        } else {
+          console.log('저장된 토큰 없음');
+        }
+        
+        // 스토어 초기화 (인증 여부와 관계없이 실행) - 한 번만 실행
+        console.log('전역 스토어 초기화 중...');
+        await initializeStores();
+        console.log('전역 스토어 초기화 완료 - 이제 페이지에서 데이터 유지됨');
+      } catch (error) {
+        console.error('애플리케이션 초기화 오류:', error);
+      }
+    };
+    
+    initializeAuth();
+  }, [loadCurrentUser]);
 
   useEffect(() => {
     // Apply theme to document root
@@ -162,6 +196,14 @@ const App: React.FC = () => {
               <ProtectedRoute>
                 <DashboardLayout>
                   <NotificationsPage />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } />
+
+            <Route path="/reports" element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ReportsPage />
                 </DashboardLayout>
               </ProtectedRoute>
             } />

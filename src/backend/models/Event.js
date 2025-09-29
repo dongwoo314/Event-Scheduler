@@ -3,7 +3,7 @@ const { Model } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class Event extends Model {
     static associate(models) {
-      // Event belongs to User
+      // Event belongs to User (creator)
       Event.belongsTo(models.User, {
         foreignKey: 'user_id',
         as: 'creator'
@@ -19,20 +19,6 @@ module.exports = (sequelize, DataTypes) => {
       Event.hasMany(models.Notification, {
         foreignKey: 'event_id',
         as: 'notifications'
-      });
-      
-      // Event has many EventParticipants
-      Event.hasMany(models.EventParticipant, {
-        foreignKey: 'event_id',
-        as: 'participants'
-      });
-      
-      // Event belongs to many Users through EventParticipants
-      Event.belongsToMany(models.User, {
-        through: models.EventParticipant,
-        foreignKey: 'event_id',
-        otherKey: 'user_id',
-        as: 'attendees'
       });
     }
 

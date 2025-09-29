@@ -1,521 +1,583 @@
 const nodemailer = require('nodemailer');
-const moment = require('moment-timezone');
+const { Op } = require('sequelize');
 
 class EmailService {
   constructor() {
-    this.transporter = null;
-    this.initialized = false;
+    // 이메일 전송을 위한 transporter 설정
+    this.transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: process.env.SMTP_PORT || 587,
+      secure: false, // true for 465, false for other ports
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    // 개발 환경에서는 Ethereal Email 사용 (테스트용)
+    if (process.env.NODE_ENV === 'development' && !process.env.SMTP_USER) {
+      this.setupTestAccount();
+    }
   }
 
   /**
-   * 이메일 전송기 초기화
+   * 테스트 계정 설정 (개발용)
    */
-  async initialize() {
+  async setupTestAccount() {
     try {
-      if (this.initialized) return;
-
-      this.transporter = nodemailer.createTransporter({
-        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.EMAIL_PORT) || 587,
-        secure: false, // true for 465, false for other ports
+      const testAccount = await nodemailer.createTestAccount();
+      
+      this.transporter = nodemailer.createTransport({
+        host: 'smtp.ethereal.email',
+        port: 587,
+        secure: false,
         auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASSWORD
+          user: testAccount.user,
+          pass: testAccount.pass,
         },
-        tls: {
-          rejectUnauthorized: false
-        }
       });
 
-      // 연결 테스트
-      await this.transporter.verify();
-      
-      this.initialized = true;
-      console.log('✅ Email service initialized successfully');
+      console.log('📧 Test email account created:');
+      console.log('   User:', testAccount.user);
+      console.log('   Pass:', testAccount.pass);
     } catch (error) {
-      console.error('❌ Email service initialization failed:', error);
+      console.error('Failed to create test account:', error);
+    }
+  }
+
+  /**
+   * 이메일 전송
+   */
+  async sendEmail({ to, subject, html, text }) {
+    try {
+      const info = await this.transporter.sendMail({
+        from: `"일정 관리 시스템" <${process.env.SMTP_USER || 'noreply@scheduler.com'}>`,
+        to,
+        subject,
+        text,
+        html,
+      });
+
+      console.log('📧 Email sent:', info.messageId);
+      
+      // 테스트 환경에서는 미리보기 URL 출력
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📧 Preview URL:', nodemailer.getTestMessageUrl(info));
+      }
+
+      return info;
+    } catch (error) {
+      console.error('Failed to send email:', error);
       throw error;
     }
   }
 
   /**
-   * 이벤트 알림 이메일 전송
+   * 이벤트 알림 이메일
    */
-  async sendEventNotification(user, event, notification) {
-    try {
-      if (!this.initialized) {
-        await this.initialize();
-      }
+  async sendEventNotification(user, event, minutesBefore) {
+    const subject = `🔔 곧 시작되는 이벤트: ${event.title}`;
+    
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .event-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+          .detail-row { margin: 10px 0; }
+          .label { font-weight: bold; color: #667eea; }
+          .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }
+          .footer { text-align: center; color: #666; font-size: 12px; margin-top: 30px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🔔 이벤트 알림</h1>
+          </div>
+          <div class="content">
+            <p>안녕하세요, ${user.first_name}님!</p>
+            <p><strong>${minutesBefore}분 후</strong>에 다음 이벤트가 시작됩니다:</p>
+            
+            <div class="event-details">
+              <h2>${event.title}</h2>
+              ${event.description ? `<p>${event.description}</p>` : ''}
+              
+              <div class="detail-row">
+                <span class="label">시작 시간:</span>
+                ${new Date(event.start_time).toLocaleString('ko-KR', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric', 
+                  hour: '2-digit', 
+                  minute: '2-digit' 
+                })}
+              </div>
+              
+              ${event.end_time ? `
+                <div class="detail-row">
+                  <span class="label">종료 시간:</span>
+                  ${new Date(event.end_time).toLocaleString('ko-KR', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric', 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </div>
+              ` : ''}
+              
+              ${event.location ? `
+                <div class="detail-row">
+                  <span class="label">장소:</span>
+                  ${event.location}
+                </div>
+              ` : ''}
+              
+              ${event.category ? `
+                <div class="detail-row">
+                  <span class="label">카테고리:</span>
+                  ${event.category}
+                </div>
+              ` : ''}
+            </div>
+            
+            <p>일정을 확인하고 준비하세요!</p>
+            
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/calendar" class="button">
+              캘린더에서 보기
+            </a>
+          </div>
+          
+          <div class="footer">
+            <p>이 이메일은 자동으로 발송되었습니다.</p>
+            <p>알림 설정은 <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/settings">여기</a>에서 변경할 수 있습니다.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
 
-      const subject = this.getEmailSubject(notification.type, event.title);
-      const htmlContent = this.generateEventNotificationHTML(user, event, notification);
-      const textContent = this.generateEventNotificationText(user, event, notification);
-
-      const mailOptions = {
-        from: {
-          name: 'Event Scheduler',
-          address: process.env.EMAIL_USER
-        },
-        to: user.email,
-        subject,
-        text: textContent,
-        html: htmlContent,
-        headers: {
-          'X-Priority': this.getPriority(notification.priority),
-          'X-Event-ID': event.id,
-          'X-Notification-ID': notification.id
-        }
-      };
-
-      const result = await this.transporter.sendMail(mailOptions);
+    const text = `
+      안녕하세요, ${user.first_name}님!
       
-      console.log(`✅ Event notification email sent to: ${user.email}`);
-      return { success: true, messageId: result.messageId };
+      ${minutesBefore}분 후에 다음 이벤트가 시작됩니다:
+      
+      제목: ${event.title}
+      ${event.description ? `설명: ${event.description}` : ''}
+      시작 시간: ${new Date(event.start_time).toLocaleString('ko-KR')}
+      ${event.end_time ? `종료 시간: ${new Date(event.end_time).toLocaleString('ko-KR')}` : ''}
+      ${event.location ? `장소: ${event.location}` : ''}
+      
+      일정을 확인하고 준비하세요!
+      
+      캘린더에서 보기: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/calendar
+    `;
 
-    } catch (error) {
-      console.error('Error sending event notification email:', error);
-      return { success: false, error: error.message };
-    }
+    return await this.sendEmail({
+      to: user.email,
+      subject,
+      html,
+      text,
+    });
   }
 
   /**
-   * 사용자 환영 이메일
+   * 그룹 초대 이메일
+   */
+  async sendGroupInvitation(invitee, inviter, group) {
+    const subject = `📨 그룹 초대: ${group.name}`;
+    
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .group-card { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+          .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin: 10px 5px; }
+          .button-secondary { background: #6c757d; }
+          .footer { text-align: center; color: #666; font-size: 12px; margin-top: 30px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📨 그룹 초대</h1>
+          </div>
+          <div class="content">
+            <p>안녕하세요, ${invitee.first_name}님!</p>
+            <p><strong>${inviter.first_name} ${inviter.last_name}</strong>님이 회원님을 그룹에 초대했습니다.</p>
+            
+            <div class="group-card">
+              <h2>${group.name}</h2>
+              ${group.description ? `<p>${group.description}</p>` : ''}
+              
+              <p><strong>멤버 수:</strong> ${group.member_count || 1}명</p>
+            </div>
+            
+            <p>그룹에 참여하여 일정을 함께 관리하세요!</p>
+            
+            <div style="text-align: center;">
+              <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/groups" class="button">
+                초대 확인하기
+              </a>
+            </div>
+          </div>
+          
+          <div class="footer">
+            <p>이 이메일은 자동으로 발송되었습니다.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const text = `
+      안녕하세요, ${invitee.first_name}님!
+      
+      ${inviter.first_name} ${inviter.last_name}님이 회원님을 그룹에 초대했습니다.
+      
+      그룹 이름: ${group.name}
+      ${group.description ? `설명: ${group.description}` : ''}
+      
+      그룹에 참여하여 일정을 함께 관리하세요!
+      
+      초대 확인하기: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/groups
+    `;
+
+    return await this.sendEmail({
+      to: invitee.email,
+      subject,
+      html,
+      text,
+    });
+  }
+
+  /**
+   * 그룹 이벤트 생성 알림
+   */
+  async sendGroupEventNotification(user, event, group) {
+    const subject = `📅 새로운 그룹 이벤트: ${event.title}`;
+    
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .event-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+          .detail-row { margin: 10px 0; }
+          .label { font-weight: bold; color: #667eea; }
+          .badge { display: inline-block; padding: 5px 10px; background: #667eea; color: white; border-radius: 5px; font-size: 12px; }
+          .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }
+          .footer { text-align: center; color: #666; font-size: 12px; margin-top: 30px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📅 새로운 그룹 이벤트</h1>
+          </div>
+          <div class="content">
+            <p>안녕하세요, ${user.first_name}님!</p>
+            <p><strong>${group.name}</strong> 그룹에 새로운 이벤트가 추가되었습니다.</p>
+            
+            <div class="event-details">
+              <div style="margin-bottom: 15px;">
+                <span class="badge">그룹 이벤트</span>
+              </div>
+              
+              <h2>${event.title}</h2>
+              ${event.description ? `<p>${event.description}</p>` : ''}
+              
+              <div class="detail-row">
+                <span class="label">시작 시간:</span>
+                ${new Date(event.start_time).toLocaleString('ko-KR', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric', 
+                  hour: '2-digit', 
+                  minute: '2-digit' 
+                })}
+              </div>
+              
+              ${event.end_time ? `
+                <div class="detail-row">
+                  <span class="label">종료 시간:</span>
+                  ${new Date(event.end_time).toLocaleString('ko-KR', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric', 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </div>
+              ` : ''}
+              
+              ${event.location ? `
+                <div class="detail-row">
+                  <span class="label">장소:</span>
+                  ${event.location}
+                </div>
+              ` : ''}
+            </div>
+            
+            <p>그룹 캘린더에서 자세한 내용을 확인하세요!</p>
+            
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/groups/${group.id}" class="button">
+              그룹 보기
+            </a>
+          </div>
+          
+          <div class="footer">
+            <p>이 이메일은 자동으로 발송되었습니다.</p>
+            <p>알림 설정은 <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/settings">여기</a>에서 변경할 수 있습니다.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const text = `
+      안녕하세요, ${user.first_name}님!
+      
+      ${group.name} 그룹에 새로운 이벤트가 추가되었습니다.
+      
+      제목: ${event.title}
+      ${event.description ? `설명: ${event.description}` : ''}
+      시작 시간: ${new Date(event.start_time).toLocaleString('ko-KR')}
+      ${event.end_time ? `종료 시간: ${new Date(event.end_time).toLocaleString('ko-KR')}` : ''}
+      ${event.location ? `장소: ${event.location}` : ''}
+      
+      그룹 캘린더에서 자세한 내용을 확인하세요!
+      
+      그룹 보기: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/groups/${group.id}
+    `;
+
+    return await this.sendEmail({
+      to: user.email,
+      subject,
+      html,
+      text,
+    });
+  }
+
+  /**
+   * 그룹 이벤트 수정 알림
+   */
+  async sendGroupEventUpdateNotification(user, event, group) {
+    const subject = `📝 그룹 이벤트 변경: ${event.title}`;
+    
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .event-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+          .detail-row { margin: 10px 0; }
+          .label { font-weight: bold; color: #667eea; }
+          .badge { display: inline-block; padding: 5px 10px; background: #f59e0b; color: white; border-radius: 5px; font-size: 12px; }
+          .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }
+          .footer { text-align: center; color: #666; font-size: 12px; margin-top: 30px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📝 이벤트 변경 알림</h1>
+          </div>
+          <div class="content">
+            <p>안녕하세요, ${user.first_name}님!</p>
+            <p><strong>${group.name}</strong> 그룹의 이벤트가 수정되었습니다.</p>
+            
+            <div class="event-details">
+              <div style="margin-bottom: 15px;">
+                <span class="badge">수정됨</span>
+              </div>
+              
+              <h2>${event.title}</h2>
+              ${event.description ? `<p>${event.description}</p>` : ''}
+              
+              <div class="detail-row">
+                <span class="label">시작 시간:</span>
+                ${new Date(event.start_time).toLocaleString('ko-KR', { 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric', 
+                  hour: '2-digit', 
+                  minute: '2-digit' 
+                })}
+              </div>
+              
+              ${event.end_time ? `
+                <div class="detail-row">
+                  <span class="label">종료 시간:</span>
+                  ${new Date(event.end_time).toLocaleString('ko-KR', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric', 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
+                </div>
+              ` : ''}
+              
+              ${event.location ? `
+                <div class="detail-row">
+                  <span class="label">장소:</span>
+                  ${event.location}
+                </div>
+              ` : ''}
+            </div>
+            
+            <p>변경된 내용을 확인하세요!</p>
+            
+            <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/groups/${group.id}" class="button">
+              그룹 보기
+            </a>
+          </div>
+          
+          <div class="footer">
+            <p>이 이메일은 자동으로 발송되었습니다.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const text = `
+      안녕하세요, ${user.first_name}님!
+      
+      ${group.name} 그룹의 이벤트가 수정되었습니다.
+      
+      제목: ${event.title}
+      ${event.description ? `설명: ${event.description}` : ''}
+      시작 시간: ${new Date(event.start_time).toLocaleString('ko-KR')}
+      ${event.end_time ? `종료 시간: ${new Date(event.end_time).toLocaleString('ko-KR')}` : ''}
+      ${event.location ? `장소: ${event.location}` : ''}
+      
+      변경된 내용을 확인하세요!
+      
+      그룹 보기: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/groups/${group.id}
+    `;
+
+    return await this.sendEmail({
+      to: user.email,
+      subject,
+      html,
+      text,
+    });
+  }
+
+  /**
+   * 환영 이메일 (회원가입 시)
    */
   async sendWelcomeEmail(user) {
-    try {
-      if (!this.initialized) {
-        await this.initialize();
-      }
-
-      const subject = `Event Scheduler에 오신 것을 환영합니다, ${user.first_name}님!`;
-      const htmlContent = this.generateWelcomeHTML(user);
-      const textContent = this.generateWelcomeText(user);
-
-      const mailOptions = {
-        from: {
-          name: 'Event Scheduler',
-          address: process.env.EMAIL_USER
-        },
-        to: user.email,
-        subject,
-        text: textContent,
-        html: htmlContent
-      };
-
-      const result = await this.transporter.sendMail(mailOptions);
-      
-      console.log(`✅ Welcome email sent to: ${user.email}`);
-      return { success: true, messageId: result.messageId };
-
-    } catch (error) {
-      console.error('Error sending welcome email:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * 비밀번호 재설정 이메일
-   */
-  async sendPasswordResetEmail(user, resetToken) {
-    try {
-      if (!this.initialized) {
-        await this.initialize();
-      }
-
-      const subject = '비밀번호 재설정 요청';
-      const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
-      const htmlContent = this.generatePasswordResetHTML(user, resetUrl);
-      const textContent = this.generatePasswordResetText(user, resetUrl);
-
-      const mailOptions = {
-        from: {
-          name: 'Event Scheduler',
-          address: process.env.EMAIL_USER
-        },
-        to: user.email,
-        subject,
-        text: textContent,
-        html: htmlContent,
-        headers: {
-          'X-Priority': '1' // High priority
-        }
-      };
-
-      const result = await this.transporter.sendMail(mailOptions);
-      
-      console.log(`✅ Password reset email sent to: ${user.email}`);
-      return { success: true, messageId: result.messageId };
-
-    } catch (error) {
-      console.error('Error sending password reset email:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * 이메일 인증 메일
-   */
-  async sendEmailVerification(user, verificationToken) {
-    try {
-      if (!this.initialized) {
-        await this.initialize();
-      }
-
-      const subject = '이메일 주소 인증';
-      const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${verificationToken}`;
-      const htmlContent = this.generateEmailVerificationHTML(user, verificationUrl);
-      const textContent = this.generateEmailVerificationText(user, verificationUrl);
-
-      const mailOptions = {
-        from: {
-          name: 'Event Scheduler',
-          address: process.env.EMAIL_USER
-        },
-        to: user.email,
-        subject,
-        text: textContent,
-        html: htmlContent
-      };
-
-      const result = await this.transporter.sendMail(mailOptions);
-      
-      console.log(`✅ Email verification sent to: ${user.email}`);
-      return { success: true, messageId: result.messageId };
-
-    } catch (error) {
-      console.error('Error sending email verification:', error);
-      return { success: false, error: error.message };
-    }
-  }
-
-  /**
-   * HTML 템플릿 생성 메소드들
-   */
-
-  generateEventNotificationHTML(user, event, notification) {
-    const eventTime = moment.tz(event.start_time, event.timezone);
-    const formattedDate = eventTime.format('YYYY년 MM월 DD일 (dddd)');
-    const formattedTime = eventTime.format('HH:mm');
+    const subject = '🎉 일정 관리 시스템에 오신 것을 환영합니다!';
     
-    const actionButtons = notification.metadata?.allow_user_actions ? `
-      <div style="text-align: center; margin: 30px 0;">
-        <h3 style="color: #374151; margin-bottom: 20px;">어떻게 하시겠어요?</h3>
-        <div style="display: inline-block;">
-          <a href="${process.env.FRONTEND_URL}/notifications/${notification.id}/action?type=confirmed" 
-             style="display: inline-block; margin: 0 10px; padding: 12px 24px; background-color: #3B82F6; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
-            ✓ 확인
-          </a>
-          <a href="${process.env.FRONTEND_URL}/notifications/${notification.id}/action?type=snooze" 
-             style="display: inline-block; margin: 0 10px; padding: 12px 24px; background-color: #F59E0B; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
-            ⏰ 10분 후
-          </a>
-          <a href="${process.env.FRONTEND_URL}/notifications/${notification.id}/action?type=ready" 
-             style="display: inline-block; margin: 0 10px; padding: 12px 24px; background-color: #10B981; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
-            🎯 준비완료
-          </a>
-        </div>
-      </div>
-    ` : '';
-
-    return `
+    const html = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Event Scheduler 알림</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+          .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+          .feature-box { background: white; padding: 15px; border-radius: 8px; margin: 15px 0; }
+          .button { display: inline-block; padding: 12px 30px; background: #667eea; color: white; text-decoration: none; border-radius: 5px; margin-top: 20px; }
+          .footer { text-align: center; color: #666; font-size: 12px; margin-top: 30px; }
+        </style>
       </head>
-      <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
-          <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 300;">Event Scheduler</h1>
-          <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 16px;">스마트 이벤트 알림</p>
-        </div>
-        
-        <div style="background: white; padding: 40px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <h2 style="color: #1F2937; margin-top: 0; font-size: 24px;">${notification.title}</h2>
-          
-          <div style="background: #F9FAFB; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="color: #374151; margin-top: 0; font-size: 20px;">${event.title}</h3>
-            <p style="color: #6B7280; margin: 10px 0;"><strong>📅 날짜:</strong> ${formattedDate}</p>
-            <p style="color: #6B7280; margin: 10px 0;"><strong>🕒 시간:</strong> ${formattedTime}</p>
-            ${event.location ? `<p style="color: #6B7280; margin: 10px 0;"><strong>📍 장소:</strong> ${event.location}</p>` : ''}
-            ${event.description ? `<p style="color: #6B7280; margin: 15px 0 0 0;">${event.description}</p>` : ''}
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🎉 환영합니다!</h1>
           </div>
-
-          <div style="background: #EFF6FF; border-left: 4px solid #3B82F6; padding: 15px; margin: 20px 0;">
-            <p style="margin: 0; color: #1E40AF;">${notification.message}</p>
-          </div>
-
-          ${actionButtons}
-
-          <div style="text-align: center; margin-top: 30px;">
-            <a href="${process.env.FRONTEND_URL}/events/${event.id}" 
-               style="display: inline-block; padding: 14px 28px; background-color: #6366F1; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
-              이벤트 상세보기
-            </a>
-          </div>
-        </div>
-        
-        <div style="text-align: center; margin-top: 30px; padding: 20px; color: #6B7280; font-size: 14px;">
-          <p>이 이메일은 Event Scheduler에서 자동으로 발송된 알림입니다.</p>
-          <p>
-            <a href="${process.env.FRONTEND_URL}/settings/notifications" style="color: #6366F1;">알림 설정</a> | 
-            <a href="${process.env.FRONTEND_URL}/unsubscribe" style="color: #6366F1;">구독 해지</a>
-          </p>
-        </div>
-      </body>
-      </html>
-    `;
-  }
-
-  generateEventNotificationText(user, event, notification) {
-    const eventTime = moment.tz(event.start_time, event.timezone);
-    const formattedDateTime = eventTime.format('YYYY년 MM월 DD일 (dddd) HH:mm');
-    
-    return `
-Event Scheduler 알림
-
-${notification.title}
-
-이벤트: ${event.title}
-일시: ${formattedDateTime}
-${event.location ? `장소: ${event.location}` : ''}
-
-${notification.message}
-
-${event.description ? `\n상세내용:\n${event.description}` : ''}
-
-이벤트 상세보기: ${process.env.FRONTEND_URL}/events/${event.id}
-
----
-이 이메일은 Event Scheduler에서 자동으로 발송된 알림입니다.
-알림 설정: ${process.env.FRONTEND_URL}/settings/notifications
-    `.trim();
-  }
-
-  generateWelcomeHTML(user) {
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Event Scheduler에 오신 것을 환영합니다!</title>
-      </head>
-      <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; border-radius: 12px; text-align: center;">
-          <h1 style="color: white; margin: 0; font-size: 32px; font-weight: 300;">환영합니다! 🎉</h1>
-          <p style="color: rgba(255,255,255,0.9); margin: 15px 0 0 0; font-size: 18px;">${user.first_name}님, Event Scheduler에 가입해주셔서 감사합니다.</p>
-        </div>
-        
-        <div style="background: white; padding: 40px; border-radius: 12px; margin-top: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <h2 style="color: #1F2937; margin-top: 0;">스마트한 일정 관리가 시작됩니다</h2>
-          
-          <div style="margin: 30px 0;">
-            <div style="display: flex; align-items: center; margin: 20px 0;">
-              <div style="width: 40px; height: 40px; background: #EFF6FF; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
-                🔔
-              </div>
-              <div>
-                <h3 style="margin: 0; color: #374151;">혁신적인 스마트 알림</h3>
-                <p style="margin: 5px 0 0 0; color: #6B7280;">사전 알림으로 정시 알림을 제어하세요</p>
-              </div>
+          <div class="content">
+            <p>안녕하세요, ${user.first_name}님!</p>
+            <p>일정 관리 시스템에 가입해 주셔서 감사합니다.</p>
+            
+            <h3>주요 기능:</h3>
+            
+            <div class="feature-box">
+              <h4>📅 개인 일정 관리</h4>
+              <p>개인 이벤트를 생성하고 관리하세요.</p>
             </div>
             
-            <div style="display: flex; align-items: center; margin: 20px 0;">
-              <div style="width: 40px; height: 40px; background: #F0FDF4; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
-                👥
-              </div>
-              <div>
-                <h3 style="margin: 0; color: #374151;">그룹 이벤트 관리</h3>
-                <p style="margin: 5px 0 0 0; color: #6B7280;">팀과 함께하는 스마트한 일정 관리</p>
-              </div>
+            <div class="feature-box">
+              <h4>👥 그룹 협업</h4>
+              <p>팀원들과 함께 일정을 공유하고 관리하세요.</p>
             </div>
             
-            <div style="display: flex; align-items: center; margin: 20px 0;">
-              <div style="width: 40px; height: 40px; background: #FEF3C7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
-                🌙
-              </div>
-              <div>
-                <h3 style="margin: 0; color: #374151;">다크 테마 UI</h3>
-                <p style="margin: 5px 0 0 0; color: #6B7280;">눈의 피로를 줄이는 모던한 디자인</p>
-              </div>
+            <div class="feature-box">
+              <h4>🔔 스마트 알림</h4>
+              <p>이벤트 시작 전 이메일 알림을 받으세요.</p>
+            </div>
+            
+            <p>지금 바로 시작해보세요!</p>
+            
+            <div style="text-align: center;">
+              <a href="${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard" class="button">
+                대시보드로 이동
+              </a>
             </div>
           </div>
-
-          <div style="text-align: center; margin: 40px 0 20px 0;">
-            <a href="${process.env.FRONTEND_URL}/dashboard" 
-               style="display: inline-block; padding: 16px 32px; background-color: #6366F1; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px;">
-              지금 시작하기
-            </a>
+          
+          <div class="footer">
+            <p>문의사항이 있으시면 언제든지 연락주세요.</p>
+            <p>&copy; 2024 일정 관리 시스템. All rights reserved.</p>
           </div>
-        </div>
-        
-        <div style="text-align: center; margin-top: 30px; padding: 20px; color: #6B7280; font-size: 14px;">
-          <p>궁금한 점이 있으시면 언제든 문의해주세요!</p>
-          <p>
-            <a href="${process.env.FRONTEND_URL}/help" style="color: #6366F1;">도움말</a> | 
-            <a href="mailto:support@eventscheduler.com" style="color: #6366F1;">고객지원</a>
-          </p>
         </div>
       </body>
       </html>
     `;
-  }
 
-  generateWelcomeText(user) {
-    return `
-Event Scheduler에 오신 것을 환영합니다!
-
-안녕하세요 ${user.first_name}님,
-
-Event Scheduler에 가입해주셔서 감사합니다. 이제 스마트한 일정 관리를 시작하실 수 있습니다.
-
-주요 기능:
-• 혁신적인 스마트 알림 - 사전 알림으로 정시 알림을 제어
-• 그룹 이벤트 관리 - 팀과 함께하는 일정 관리
-• 다크 테마 UI - 눈의 피로를 줄이는 모던한 디자인
-
-지금 시작하기: ${process.env.FRONTEND_URL}/dashboard
-
-궁금한 점이 있으시면 언제든 문의해주세요.
-고객지원: support@eventscheduler.com
-    `.trim();
-  }
-
-  generatePasswordResetHTML(user, resetUrl) {
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>비밀번호 재설정</title>
-      </head>
-      <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: #DC2626; padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
-          <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 300;">🔒 비밀번호 재설정</h1>
-        </div>
-        
-        <div style="background: white; padding: 40px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <h2 style="color: #1F2937; margin-top: 0;">안녕하세요 ${user.first_name}님,</h2>
-          
-          <p style="color: #374151; font-size: 16px;">비밀번호 재설정을 요청하셨습니다. 아래 버튼을 클릭하여 새로운 비밀번호를 설정하세요.</p>
-          
-          <div style="text-align: center; margin: 40px 0;">
-            <a href="${resetUrl}" 
-               style="display: inline-block; padding: 16px 32px; background-color: #DC2626; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px;">
-              비밀번호 재설정
-            </a>
-          </div>
-          
-          <div style="background: #FEF2F2; border-left: 4px solid #DC2626; padding: 15px; margin: 20px 0;">
-            <p style="margin: 0; color: #B91C1C;"><strong>보안 알림:</strong> 이 링크는 1시간 후에 만료됩니다.</p>
-          </div>
-          
-          <p style="color: #6B7280; font-size: 14px;">만약 비밀번호 재설정을 요청하지 않으셨다면, 이 이메일을 무시하셔도 됩니다. 비밀번호는 변경되지 않습니다.</p>
-          
-          <p style="color: #6B7280; font-size: 14px;">링크가 작동하지 않는경우 다음 URL을 복사하여 브라우저에 붙여넣으세요:<br>
-          <span style="word-break: break-all;">${resetUrl}</span></p>
-        </div>
-      </body>
-      </html>
+    const text = `
+      안녕하세요, ${user.first_name}님!
+      
+      일정 관리 시스템에 가입해 주셔서 감사합니다.
+      
+      주요 기능:
+      - 개인 일정 관리
+      - 그룹 협업
+      - 스마트 알림
+      
+      지금 바로 시작해보세요!
+      
+      대시보드로 이동: ${process.env.FRONTEND_URL || 'http://localhost:5173'}/dashboard
     `;
-  }
 
-  generatePasswordResetText(user, resetUrl) {
-    return `
-비밀번호 재설정
-
-안녕하세요 ${user.first_name}님,
-
-비밀번호 재설정을 요청하셨습니다. 아래 링크를 클릭하여 새로운 비밀번호를 설정하세요.
-
-${resetUrl}
-
-보안상 이 링크는 1시간 후에 만료됩니다.
-
-만약 비밀번호 재설정을 요청하지 않으셨다면, 이 이메일을 무시하셔도 됩니다.
-
-Event Scheduler
-    `.trim();
-  }
-
-  generateEmailVerificationHTML(user, verificationUrl) {
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>이메일 주소 인증</title>
-      </head>
-      <body style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: #059669; padding: 30px; border-radius: 12px 12px 0 0; text-align: center;">
-          <h1 style="color: white; margin: 0; font-size: 28px; font-weight: 300;">✉️ 이메일 인증</h1>
-        </div>
-        
-        <div style="background: white; padding: 40px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-          <h2 style="color: #1F2937; margin-top: 0;">안녕하세요 ${user.first_name}님,</h2>
-          
-          <p style="color: #374151; font-size: 16px;">Event Scheduler 회원가입을 완료하려면 이메일 주소를 인증해주세요.</p>
-          
-          <div style="text-align: center; margin: 40px 0;">
-            <a href="${verificationUrl}" 
-               style="display: inline-block; padding: 16px 32px; background-color: #059669; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 18px;">
-              이메일 주소 인증
-            </a>
-          </div>
-          
-          <p style="color: #6B7280; font-size: 14px;">링크가 작동하지 않는경우 다음 URL을 복사하여 브라우저에 붙여넣으세요:<br>
-          <span style="word-break: break-all;">${verificationUrl}</span></p>
-        </div>
-      </body>
-      </html>
-    `;
-  }
-
-  generateEmailVerificationText(user, verificationUrl) {
-    return `
-이메일 주소 인증
-
-안녕하세요 ${user.first_name}님,
-
-Event Scheduler 회원가입을 완료하려면 아래 링크를 클릭하여 이메일 주소를 인증해주세요.
-
-${verificationUrl}
-
-Event Scheduler
-    `.trim();
-  }
-
-  /**
-   * 유틸리티 메소드들
-   */
-
-  getEmailSubject(notificationType, eventTitle) {
-    const subjects = {
-      advance_reminder: `[알림] ${eventTitle} 곧 시작`,
-      event_start: `[시작] ${eventTitle}`,
-      event_reminder: `[리마인더] ${eventTitle}`,
-      event_invitation: `[초대] ${eventTitle}`,
-      event_update: `[변경] ${eventTitle}`,
-      event_cancellation: `[취소] ${eventTitle}`,
-      snooze_reminder: `[다시알림] ${eventTitle}`
-    };
-    
-    return subjects[notificationType] || `[Event Scheduler] ${eventTitle}`;
-  }
-
-  getPriority(priority) {
-    const priorities = {
-      urgent: '1',
-      high: '2',
-      medium: '3',
-      low: '4'
-    };
-    return priorities[priority] || '3';
+    return await this.sendEmail({
+      to: user.email,
+      subject,
+      html,
+      text,
+    });
   }
 }
 
-module.exports = new EmailService();
+// 싱글톤 인스턴스
+const emailService = new EmailService();
+
+module.exports = emailService;

@@ -38,11 +38,20 @@ const LoginPage: React.FC = () => {
   });
 
   const onSubmit = async (data: LoginFormData) => {
+    console.log('로그인 시도:', data.email);
+    
     try {
+      console.log('로그인 함수 호출 중...');
       await login(data);
+      console.log('로그인 성공!');
+      
       showSuccess('로그인 성공', '환영합니다!');
+      
+      console.log('대시보드로 이동 중...');
       navigate('/dashboard');
+      console.log('navigate 호출 완료');
     } catch (error) {
+      console.error('로그인 에러:', error);
       showError('로그인 실패', error instanceof Error ? error.message : '로그인에 실패했습니다.');
     }
   };

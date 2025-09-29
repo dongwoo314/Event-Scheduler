@@ -17,7 +17,7 @@ const userSchemas = {
       'any.required': 'First name is required'
     }),
     last_name: Joi.string().min(1).max(50).required().messages({
-      'string.min': 'Last name is required',
+      'string.min': 'Last name must be at least 1 character',
       'string.max': 'Last name cannot exceed 50 characters',
       'any.required': 'Last name is required'
     }),

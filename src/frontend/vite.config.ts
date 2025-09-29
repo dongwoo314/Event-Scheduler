@@ -47,4 +47,13 @@ export default defineConfig({
   preview: {
     port: 3000,
   },
+  define: {
+    global: 'globalThis',
+  },
+  esbuild: {
+    charset: 'utf8',
+    legalComments: 'none',
+    target: 'es2020',
+    keepNames: true,
+  },
 })

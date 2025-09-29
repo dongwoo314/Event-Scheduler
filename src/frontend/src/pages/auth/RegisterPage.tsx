@@ -17,8 +17,7 @@ const registerSchema = z.object({
     .min(2, '이름은 최소 2자 이상이어야 합니다.'),
   last_name: z
     .string()
-    .min(1, '성을 입력해주세요.')
-    .min(2, '성은 최소 2자 이상이어야 합니다.'),
+    .min(1, '성을 입력해주세요.'),
   email: z
     .string()
     .min(1, '이메일을 입력해주세요.')
@@ -76,8 +75,12 @@ const RegisterPage: React.FC = () => {
         timezone: 'Asia/Seoul',
         language: 'ko',
       });
-      showSuccess('회원가입 성공', '환영합니다!');
-      navigate('/dashboard');
+      showSuccess('회원가입 성공', '회원가입에 성공하였습니다. 로그인 페이지로 이동합니다.');
+      
+      // 2초 후 로그인 페이지로 이동
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
     } catch (error) {
       showError('회원가입 실패', error instanceof Error ? error.message : '회원가입에 실패했습니다.');
     }
