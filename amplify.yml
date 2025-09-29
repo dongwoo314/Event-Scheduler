@@ -1,37 +1,17 @@
 version: 1
-applications:
-  - frontend:
-      phases:
-        preBuild:
-          commands:
-            - cd src/frontend
-            - npm ci
-        build:
-          commands:
-            - npm run build
-      artifacts:
-        baseDirectory: src/frontend/dist
-        files:
-          - '**/*'
-      cache:
-        paths:
-          - src/frontend/node_modules/**/*
-    appRoot: src/frontend
-  - backend:
-      phases:
-        preBuild:
-          commands:
-            - cd src/backend
-            - npm ci
-        build:
-          commands:
-            - echo "Backend build completed"
-      artifacts:
-        baseDirectory: src/backend
-        files:
-          - '**/*'
-          - '!node_modules/**/*'
-      cache:
-        paths:
-          - src/backend/node_modules/**/*
-    appRoot: src/backend
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - cd src/frontend
+        - npm ci
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: src/frontend/dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - src/frontend/node_modules/**/*
