@@ -9,16 +9,6 @@
 
 ---
 
-## 📚 배포 가이드
-
-### 빠른 시작 (발표 시연용)
-👉 **[QUICK_DEPLOY_GUIDE.md](./QUICK_DEPLOY_GUIDE.md)** - 30분 안에 배포 완료
-
-### 상세 가이드
-👉 **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** - 전체 배포 프로세스
-
----
-
 ## 🚀 로컬 실행 방법
 
 ### 사전 요구사항
@@ -103,7 +93,7 @@ schedule-app-project/
 ## 🌍 배포 환경
 
 - **호스팅**: AWS Amplify (프론트엔드)
-- **서버**: AWS App Runner (백엔드)
+- **서버**: AWS App Runner (백엔드), Vercel Serverless
 - **데이터베이스**: AWS RDS PostgreSQL
 - **CI/CD**: GitHub 연동 자동 배포
 
@@ -130,20 +120,6 @@ DB_TYPE=sqlite
 
 ---
 
-## 🎓 개발팀
-
-- **팀명**: [팀명 입력]
-- **프로젝트**: 졸업작품 - 스케줄 관리 시스템
-- **기간**: [개발 기간]
-
----
-
-## 📄 라이선스
-
-MIT License
-
----
-
 ## 🆘 문제 해결
 
 배포 중 문제가 발생하면:
@@ -163,5 +139,3 @@ MIT License
 - [ ] 백업 계획 (로컬 데모)
 
 ---
-
-**Made with ❤️ by [팀명]**
